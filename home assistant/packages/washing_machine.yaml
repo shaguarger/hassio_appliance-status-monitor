@@ -5,6 +5,12 @@ timer:
     restore: true
     icon: mdi:washing-machine
 
+  washing_machine_reminder_timer:
+    name: Washing Machine - Reminder Timer
+    duration: "01:00:00" # <- Only a default: the actual re-nag interval is set in the reminder blueprint
+    restore: true
+    icon: mdi:washing-machine
+
 input_boolean:
   washing_machine_job_cycle:
     name: Washing Machine - Job Cycle
@@ -13,6 +19,19 @@ input_boolean:
   washing_machine_automation_self_trigger:
     name: Washing Machine - Automation Self-trigger
     icon: mdi:washing-machine
+
+  washing_machine_needs_attention:
+    name: Washing Machine - Needs Attention
+    icon: mdi:washing-machine
+    restore_state: true
+
+input_button:
+  washing_machine_taken_care_of:
+    name: Washing Machine - Taken Care Of
+    icon: mdi:check
+  washing_machine_snooze:
+    name: Washing Machine - Snooze
+    icon: mdi:alarm-plus
 
 input_select:
   washing_machine_state_machine:

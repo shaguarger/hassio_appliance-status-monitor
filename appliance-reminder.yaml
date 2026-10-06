@@ -1,0 +1,350 @@
+blueprint:
+  name: Appliance reminder - by leofabri
+  description: >-
+    Companion to the "Monitor the state of an appliance" blueprint.
+
+    When your appliance finishes a job cycle (job_completed state), this automation sends you a
+    notification on your phone and keeps re-notifying you until you take care of it.
+    You can press **Taken care of** to dismiss the reminder, or **Snooze** to postpone the next
+    reminder. You can also use the buttons from your dashboard, and the reminder is cleared
+    automatically if a new job cycle begins (so you don't get nagged for a load you already emptied).
+
+    The reminder survives Home Assistant reboots: if the appliance finished while HA was down,
+    the re-notification loop picks up where it left off.
+
+    **Setup**
+
+    1. Add four extra helpers to your appliance's package (a `needs_attention` input_boolean, a
+       `reminder_timer` timer, and `taken_care_of` / `snooze` buttons) - the presets in this repo
+       already include them.
+    2. Import this blueprint and create a **second** automation for your appliance.
+    3. Point it at the same State Machine entity your
+       "Monitor the state of an appliance" automation uses.
+
+    Multiple appliances and multiple phones are supported: create one instance per appliance, and
+    use a notify group as the notify target to reach all your devices.
+
+    <strong>First setup?</strong> <i>[Follow the instructions](https://github.com/leofabri/hassio_appliance-status-monitor)</i>
+  domain: automation
+  input:
+    appliance_name:
+      name: Appliance name
+      description: >-
+        (OPTIONAL)
+
+        Name of the appliance, used in the notification texts.
+      default: "Appliance"
+      selector:
+        text:
+    appliance_state_machine:
+      name: Appliance State Machine
+      description: >-
+        (*REQUIRED)
+
+        The State Machine entity created in your package (the same one used by your
+        "Monitor the state of an appliance" automation).
+      default: []
+      selector:
+        entity:
+          domain: input_select
+    needs_attention:
+      name: Needs Attention flag
+      description: >-
+        (*REQUIRED)
+
+        The <your_appliance_name>_needs_attention input_boolean from your package.
+      default: []
+      selector:
+        entity:
+          domain: input_boolean
+    reminder_timer:
+      name: Reminder timer
+      description: >-
+        (*REQUIRED)
+
+        The <your_appliance_name>_reminder_timer timer from your package.
+      default: []
+      selector:
+        entity:
+          domain: timer
+    taken_care_of_button:
+      name: Taken care of button
+      description: >-
+        (*REQUIRED)
+
+        The "Taken care of" button (input_button) entity from your package.
+      default: []
+      selector:
+        entity:
+          domain: input_button
+    snooze_button:
+      name: Snooze button
+      description: >-
+        (*REQUIRED)
+
+        The "Snooze" button (input_button) entity from your package.
+      default: []
+      selector:
+        entity:
+          domain: input_button
+    notify_target:
+      name: Notify target
+      description: >-
+        (*REQUIRED)
+
+        Name of the notify service that receives the notifications: a mobile_app device
+        (e.g. mobile_app_my_phone) or a notify group (e.g. family).
+        Without the "notify." prefix, no spaces.
+      default: "notify"
+      selector:
+        text:
+    renag_interval:
+      name: Re-nag interval
+      description: >-
+        (OPTIONAL)
+
+        How often, in minutes, the reminder repeats until it is handled.
+      default: 60
+      selector:
+        number:
+          min: 1
+          max: 1440
+          step: 5
+          unit_of_measurement: min
+          mode: slider
+    snooze_duration:
+      name: Snooze duration
+      description: >-
+        (OPTIONAL)
+
+        How long, in minutes, the "Snooze" action postpones the next reminder.
+      default: 180
+      selector:
+        number:
+          min: 5
+          max: 1440
+          step: 5
+          unit_of_measurement: min
+          mode: slider
+variables:
+  appliance_name: !input "appliance_name"
+  needs_attention: !input "needs_attention"
+  notify_target: !input "notify_target"
+  renag_interval: !input "renag_interval"
+  snooze_duration: !input "snooze_duration"
+  oid: "{{ needs_attention.split('.')[1] }}"
+  tag: "appliance_reminder_{{ oid }}"
+  action_taken_care_of: "APPLIANCE_TAKEN_CARE_OF_{{ oid }}"
+  action_snooze: "APPLIANCE_SNOOZE_{{ oid }}"
+trigger:
+  - platform: state
+    entity_id: !input "appliance_state_machine"
+    from: job_ongoing
+    to: job_completed
+    id: job_completed_event
+  - platform: state
+    entity_id: !input "appliance_state_machine"
+    to: job_ongoing
+    id: new_job_event
+  - platform: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input "reminder_timer"
+    id: reminder_timer_finished
+  - platform: event
+    event_type: mobile_app_notification_action
+    id: notification_action_event
+  - platform: state
+    entity_id: !input "taken_care_of_button"
+    to: "on"
+    id: taken_care_of_pressed
+  - platform: state
+    entity_id: !input "snooze_button"
+    to: "on"
+    id: snooze_pressed
+  - platform: homeassistant
+    event: start
+    id: home_assistant_started_event
+condition:
+  - condition: or
+    conditions:
+      - condition: trigger
+        id: job_completed_event
+      - condition: trigger
+        id: new_job_event
+      - condition: trigger
+        id: taken_care_of_pressed
+      - condition: trigger
+        id: snooze_pressed
+      - condition: trigger
+        id: home_assistant_started_event
+      - condition: and
+        conditions:
+          - condition: trigger
+            id: reminder_timer_finished
+          - condition: state
+            entity_id: !input "needs_attention"
+            state: "on"
+      - condition: and
+        conditions:
+          - condition: trigger
+            id: notification_action_event
+          - condition: template
+            value_template: >-
+              {{ trigger.event.data.action in [action_taken_care_of, action_snooze] }}
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: job_completed_event
+        sequence:
+          - service: input_boolean.turn_on
+            target:
+              entity_id: !input "needs_attention"
+          - service: "notify.{{ notify_target }}"
+            data:
+              title: "{{ appliance_name }} finished"
+              message: "Please take care of the {{ appliance_name | lower }}."
+              data:
+                tag: "{{ tag }}"
+                actions:
+                  - action: "{{ action_taken_care_of }}"
+                    title: "Taken care of"
+                  - action: "{{ action_snooze }}"
+                    title: "Snooze {{ snooze_duration }} min"
+          - service: timer.cancel
+            target:
+              entity_id: !input "reminder_timer"
+          - service: timer.change_duration
+            target:
+              entity_id: !input "reminder_timer"
+            data:
+              hours: "{{ (renag_interval // 60) | int }}"
+              minutes: "{{ (renag_interval % 60) | int }}"
+          - service: timer.start
+            target:
+              entity_id: !input "reminder_timer"
+      - conditions:
+          - condition: trigger
+            id: reminder_timer_finished
+        sequence:
+          - service: "notify.{{ notify_target }}"
+            data:
+              title: "Reminder: {{ appliance_name }} finished"
+              message: "Please take care of the {{ appliance_name | lower }}."
+              data:
+                tag: "{{ tag }}"
+                actions:
+                  - action: "{{ action_taken_care_of }}"
+                    title: "Taken care of"
+                  - action: "{{ action_snooze }}"
+                    title: "Snooze {{ snooze_duration }} min"
+          - service: timer.change_duration
+            target:
+              entity_id: !input "reminder_timer"
+            data:
+              hours: "{{ (renag_interval // 60) | int }}"
+              minutes: "{{ (renag_interval % 60) | int }}"
+          - service: timer.start
+            target:
+              entity_id: !input "reminder_timer"
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: trigger
+                id: new_job_event
+              - condition: state
+                entity_id: !input "needs_attention"
+                state: "on"
+        sequence:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: !input "needs_attention"
+          - service: timer.cancel
+            target:
+              entity_id: !input "reminder_timer"
+          - service: "notify.{{ notify_target }}"
+            data:
+              message: clear_notification
+              data:
+                tag: "{{ tag }}"
+      - conditions:
+          - condition: or
+            conditions:
+              - condition: trigger
+                id: taken_care_of_pressed
+              - condition: and
+                conditions:
+                  - condition: trigger
+                    id: notification_action_event
+                  - condition: template
+                    value_template: "{{ trigger.event.data.action == action_taken_care_of }}"
+        sequence:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: !input "needs_attention"
+          - service: timer.cancel
+            target:
+              entity_id: !input "reminder_timer"
+          - service: "notify.{{ notify_target }}"
+            data:
+              message: clear_notification
+              data:
+                tag: "{{ tag }}"
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: or
+                conditions:
+                  - condition: trigger
+                    id: snooze_pressed
+                  - condition: and
+                    conditions:
+                      - condition: trigger
+                        id: notification_action_event
+                      - condition: template
+                        value_template: "{{ trigger.event.data.action == action_snooze }}"
+              - condition: state
+                entity_id: !input "needs_attention"
+                state: "on"
+        sequence:
+          - service: "notify.{{ notify_target }}"
+            data:
+              message: clear_notification
+              data:
+                tag: "{{ tag }}"
+          - service: timer.cancel
+            target:
+              entity_id: !input "reminder_timer"
+          - service: timer.change_duration
+            target:
+              entity_id: !input "reminder_timer"
+            data:
+              hours: "{{ (snooze_duration // 60) | int }}"
+              minutes: "{{ (snooze_duration % 60) | int }}"
+          - service: timer.start
+            target:
+              entity_id: !input "reminder_timer"
+      - conditions:
+          - condition: and
+            conditions:
+              - condition: trigger
+                id: home_assistant_started_event
+              - condition: state
+                entity_id: !input "needs_attention"
+                state: "on"
+              - condition: state
+                entity_id: !input "reminder_timer"
+                state: idle
+        sequence:
+          - service: timer.change_duration
+            target:
+              entity_id: !input "reminder_timer"
+            data:
+              hours: "{{ (renag_interval // 60) | int }}"
+              minutes: "{{ (renag_interval % 60) | int }}"
+          - service: timer.start
+            target:
+              entity_id: !input "reminder_timer"
+mode: queued
+max_exceeded: silent

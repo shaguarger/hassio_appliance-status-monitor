@@ -233,6 +233,66 @@ ___
 <br>
 <br>
 
+# 🔔 Reminders (optional)
+
+Tired of checking your phone to see if the washing machine is done? The **Appliance reminder** is a companion blueprint that sends you a notification when your appliance finishes a job cycle - and keeps re-notifying you until you take care of it.
+
+*   📲 **You get a notification** with two buttons: **Taken care of** (dismisses the reminder) and **Snooze** (postpones the next reminder). The buttons also appear on your dashboard.
+*   🔁 **It keeps nagging** - by default every 60 minutes (configurable) - until you press a button.
+*   🧹 **No stale nag** - if a new job cycle begins, the reminder is cleared automatically (you must have emptied the machine, right?).
+*   🔄 **Reboot safe** - if Home Assistant reboots while a reminder is pending, the re-notification loop picks up where it left off.
+*   🏠 **Multi-appliance & multi-phone friendly** - one instance per appliance, and a notify group as target to reach all your devices.
+
+> The buttons work with the official [Home Assistant mobile apps](https://companion.home-assistant.io/docs/notifications/actionable-notifications) (Android & iOS).
+
+## Setting up the reminders
+
+### 1. Create the 4 extra helpers
+
+If you are using one of my [presets](home%20assistant/packages/), they already include these helpers - just reload Home Assistant.
+
+Otherwise, add these to your appliance's package (edit the placeholders accordingly):
+
+```yaml
+input_boolean:
+  <your_appliance_name>_needs_attention:
+    name: <Your Appliance Name> - Needs Attention
+    icon: mdi:<your_appliance_icon>
+    restore_state: true
+
+timer:
+  <your_appliance_name>_reminder_timer:
+    name: <Your Appliance Name> - Reminder Timer
+    duration: "01:00:00" # <- Only a default: the actual re-nag interval is set in the reminder blueprint
+    restore: true
+    icon: mdi:<your_appliance_icon>
+
+input_button:
+  <your_appliance_name>_taken_care_of:
+    name: <Your Appliance Name> - Taken Care Of
+    icon: mdi:check
+  <your_appliance_name>_snooze:
+    name: <Your Appliance Name> - Snooze
+    icon: mdi:alarm-plus
+```
+
+### 2. Import the second blueprint
+
+1. Add the [Appliance reminder blueprint](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fleofabri%2Fhassio_appliance-status-monitor%2Fblob%2Fmain%2Fappliance-reminder.yaml) to your Home Assistant.
+2. Create a **New Automation** from that blueprint - a *second* automation, alongside your "Monitor the state of an appliance" one.
+3. Configure it:
+    * **State Machine**: the same entity your first automation uses.
+    * **Needs Attention flag**, **Reminder timer**, **Taken care of** and **Snooze** buttons: the new helpers you just created.
+    * **Notify target**: the name of your mobile_app device (e.g. `mobile_app_my_phone`) or of a [notify group](https://www.home-assistant.io/integrations/group/#notify-groups) to reach several devices - without the `notify.` prefix.
+    * **Re-nag interval** and **Snooze duration**: minutes (defaults: 60 and 180).
+4. Reload Home Assistant.
+
+That's it! When the appliance reaches the **job_completed** state, you'll be notified - and re-notified - until you press **Taken care of** or **Snooze** (from the phone or from the dashboard).
+
+___
+<br>
+<br>
+
 
 # Versions & Changelogs:
 ## 📯Important notice! 🚨

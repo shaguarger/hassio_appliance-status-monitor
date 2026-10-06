@@ -5,6 +5,12 @@ timer:
     restore: true
     icon: mdi:tumble-dryer
 
+  dryer_reminder_timer:
+    name: Dryer - Reminder Timer
+    duration: "01:00:00" # <- Only a default: the actual re-nag interval is set in the reminder blueprint
+    restore: true
+    icon: mdi:tumble-dryer
+
 input_boolean:
   dryer_job_cycle:
     name: Dryer - Job Cycle
@@ -13,6 +19,19 @@ input_boolean:
   dryer_automation_self_trigger:
     name: Dryer - Automation Self-trigger
     icon: mdi:tumble-dryer
+
+  dryer_needs_attention:
+    name: Dryer - Needs Attention
+    icon: mdi:tumble-dryer
+    restore_state: true
+
+input_button:
+  dryer_taken_care_of:
+    name: Dryer - Taken Care Of
+    icon: mdi:check
+  dryer_snooze:
+    name: Dryer - Snooze
+    icon: mdi:alarm-plus
 
 input_select:
   dryer_state_machine:

@@ -5,6 +5,12 @@ timer:
     restore: true
     icon: mdi:dishwasher
 
+  dishwasher_reminder_timer:
+    name: Dishwasher - Reminder Timer
+    duration: "01:00:00" # <- Only a default: the actual re-nag interval is set in the reminder blueprint
+    restore: true
+    icon: mdi:dishwasher
+
 input_boolean:
   dishwasher_job_cycle:
     name: Dishwasher - Job Cycle
@@ -13,6 +19,19 @@ input_boolean:
   dishwasher_automation_self_trigger:
     name: Dishwasher - Automation Self-trigger
     icon: mdi:dishwasher
+
+  dishwasher_needs_attention:
+    name: Dishwasher - Needs Attention
+    icon: mdi:dishwasher
+    restore_state: true
+
+input_button:
+  dishwasher_taken_care_of:
+    name: Dishwasher - Taken Care Of
+    icon: mdi:check
+  dishwasher_snooze:
+    name: Dishwasher - Snooze
+    icon: mdi:alarm-plus
 
 input_select:
   dishwasher_state_machine:

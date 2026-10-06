@@ -5,6 +5,12 @@ timer:
     restore: true
     icon: mdi:<your_appliance_icon>
 
+  <your_appliance_name>_reminder_timer:
+    name: <Your Appliance Name> - Reminder Timer
+    duration: "01:00:00" # <- Only a default: the actual re-nag interval is set in the reminder blueprint
+    restore: true
+    icon: mdi:<your_appliance_icon>
+
 input_boolean:
   <your_appliance_name>_job_cycle:
     name: <Your Appliance Name> - Job Cycle
@@ -13,6 +19,19 @@ input_boolean:
   <your_appliance_name>_automation_self_trigger:
     name: <Your Appliance Name> - Automation Self-trigger
     icon: mdi:<your_appliance_icon>
+
+  <your_appliance_name>_needs_attention:
+    name: <Your Appliance Name> - Needs Attention
+    icon: mdi:<your_appliance_icon>
+    restore_state: true
+
+input_button:
+  <your_appliance_name>_taken_care_of:
+    name: <Your Appliance Name> - Taken Care Of
+    icon: mdi:check
+  <your_appliance_name>_snooze:
+    name: <Your Appliance Name> - Snooze
+    icon: mdi:alarm-plus
 
 input_select:
   <your_appliance_name>_state_machine:
